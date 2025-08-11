@@ -7,36 +7,40 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import Swiper from "react-native-swiper";
-import Animated, { FadeInUp } from "react-native-reanimated";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { Animated } from "react-native"; // Use Animated from react-native
 import RenderHtml from "react-native-render-html";
 import Svg, { Path } from "react-native-svg";
 import useData from "../../hooks/useData";
+import TopBar from "../../components/TopBar";
+import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
-const DetailScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
-  const { productId, affilatorId } = route.params || {};
+const DetailScreen = ({ route, navigation }) => {
+  const productId = route?.params?.productId ?? "E7F8A9B0";
+  const affilatorId = route?.params?.affilatorId ?? "";
+  const scrollRef = useRef(null);
   const { products } = useData();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [currentVariant, setCurrentVariant] = useState("main");
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(100)).current; // Define slideAnim
   const swiperRef = useRef(null);
 
-  const product = products.find((p) => p._id === productId) || {};
+  const product = products?.find((p) => p._id === productId) || {};
   const currentImages = Array.isArray(product.images?.[currentVariant])
     ? product.images[currentVariant]
     : [];
-  const recommendedProducts = products
-    .filter((p) => p.category === product.category && p._id !== productId)
-    .slice(0, 4);
+  const recommendedProducts =
+    products
+      ?.filter((p) => p.category === product.category && p._id !== productId)
+      .slice(0, 4) || [];
 
   useEffect(() => {
     Animated.parallel([
@@ -51,7 +55,7 @@ const DetailScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const handleQuantityChange = (action) => {
     if (action === "increase" && quantity < 10) {
@@ -76,6 +80,14 @@ const DetailScreen = () => {
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ y: 0, animated: true });
+      }
+    }, [])
+  );
+
   const renderRecommendation = ({ item }) => {
     const recImage =
       Array.isArray(item.images?.main) && item.images.main.length > 0
@@ -84,9 +96,7 @@ const DetailScreen = () => {
     return (
       <TouchableOpacity
         style={styles.recommendationCard}
-        onPress={() =>
-          navigation.navigate("DetailScreen", { productId: item._id })
-        }
+        onPress={() => navigation.push("Details", { productId: item._id })}
       >
         <Image source={{ uri: recImage }} style={styles.recommendationImage} />
         <View style={styles.recommendationCardContent}>
@@ -100,22 +110,21 @@ const DetailScreen = () => {
       </TouchableOpacity>
     );
   };
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={[{ key: "product-details" }]}
-        renderItem={() => (
+    <>
+      <TopBar navigation={navigation} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.main}
+        ref={scrollRef}
+      >
+        <View style={styles.main}>
           <Animated.View
             style={[
               styles.productContainer,
               { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
             ]}
           >
-            {console.log(
-              "Rendering product details for:",
-              product.title || "Unknown Product"
-            )}
             {/* Image Gallery */}
             <View style={styles.productGallery}>
               {currentImages.length > 0 ? (
@@ -206,7 +215,7 @@ const DetailScreen = () => {
               <View style={styles.sizeSelector}>
                 <Text style={styles.sizeLabel}>Select Size</Text>
                 <View style={styles.sizeOptions}>
-                  {["S", "M", "L"].map((size) => (
+                  {(product.sizes || ["S", "M", "L"]).map((size) => (
                     <TouchableOpacity
                       key={size}
                       style={[
@@ -227,9 +236,6 @@ const DetailScreen = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TouchableOpacity style={styles.sizeChartBtn}>
-                  <Text style={styles.sizeChartBtnText}>Size Chart</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Quantity Selector */}
@@ -273,7 +279,12 @@ const DetailScreen = () => {
                     <Text style={styles.actionButtonText}>Add to Cart</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity style={styles.buyNow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.push("PlaceOrder", { productId: product._id })
+                  }
+                  style={styles.buyNow}
+                >
                   <Svg
                     width={22}
                     height={22}
@@ -360,61 +371,24 @@ const DetailScreen = () => {
                   }}
                 />
               </View>
-
-              {/* Size Chart */}
-              <View style={styles.sizeChart}>
-                <Text style={styles.sizeChartTitle}>Size Chart</Text>
-                <View style={styles.sizeChartTable}>
-                  <View style={styles.tableRow}>
-                    <Text style={[styles.tableCell, styles.tableHeader]}>
-                      Size
-                    </Text>
-                    <Text style={[styles.tableCell, styles.tableHeader]}>
-                      Length (m)
-                    </Text>
-                    <Text style={[styles.tableCell, styles.tableHeader]}>
-                      Width (m)
-                    </Text>
-                    <Text style={[styles.tableCell, styles.tableHeader]}>
-                      Blouse Piece
-                    </Text>
-                  </View>
-                  {["S", "M", "L"].map((size) => (
-                    <View key={size} style={styles.tableRow}>
-                      <Text style={styles.tableCell}>{size}</Text>
-                      <Text style={styles.tableCell}>5.5</Text>
-                      <Text style={styles.tableCell}>1.2</Text>
-                      <Text style={styles.tableCell}>Not Included</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
             </View>
           </Animated.View>
-        )}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.main}
-        ListEmptyComponent={
-          <Text style={styles.errorText}>No product details available</Text>
-        }
-      />
+        </View>
 
-      {/* Product Recommendations */}
-      <Animated.View
-        entering={FadeInUp.duration(500).delay(200)}
-        style={styles.productRecommendations}
-      >
-        <Text style={styles.recommendationsTitle}>You May Also Like</Text>
-        <FlatList
-          data={recommendedProducts}
-          renderItem={renderRecommendation}
-          keyExtractor={(item) => item._id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.recommendationsGrid}
-        />
-      </Animated.View>
-    </View>
+        {/* Product Recommendations */}
+        <View style={styles.productRecommendations}>
+          <Text style={styles.recommendationsTitle}>You May Also Like</Text>
+          <FlatList
+            data={recommendedProducts}
+            renderItem={renderRecommendation}
+            keyExtractor={(item) => item._id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recommendationsGrid}
+          />
+        </View>
+      </ScrollView>
+    </>
   );
 };
 
@@ -485,25 +459,19 @@ const styles = StyleSheet.create({
   sizeOptionSelected: { borderColor: "#73D5E8", backgroundColor: "#73D5E8" },
   sizeOptionText: { fontSize: 14, fontWeight: "500", color: "#374151" },
   sizeOptionTextSelected: { color: "#ffffff" },
-  sizeChartBtn: {
-    borderWidth: 1,
-    borderColor: "#73D5E8",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginTop: 8,
+  quantitySelector: {
+    flexDirection: "column",
+    width: "100%",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
   },
-  sizeChartBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#73D5E8",
-    textTransform: "uppercase",
-  },
-  quantitySelector: { flexDirection: "column", gap: 8, marginBottom: 16 },
   quantityLabel: { fontSize: 14, fontWeight: "500", color: "#374151" },
   quantityControls: {
+    width: "50%",
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 16,
     borderWidth: 1,
     borderColor: "#e5e7eb",
@@ -511,8 +479,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   quantityBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     backgroundColor: "#f3f4f6",
     borderRadius: 10,
   },
@@ -532,6 +500,7 @@ const styles = StyleSheet.create({
   },
   addToCart: {
     flex: 1,
+    minWidth: 120,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -542,6 +511,7 @@ const styles = StyleSheet.create({
   },
   buyNow: {
     flex: 1,
+    minWidth: 120,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -574,37 +544,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   descriptionText: { fontSize: 14, color: "#374151", lineHeight: 22 },
-  sizeChart: { marginVertical: 16 },
-  sizeChartTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  sizeChartTable: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    overflow: "hidden",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  tableHeader: {
-    backgroundColor: "#f3f4f6",
-    fontWeight: "600",
-    color: "#111827",
-  },
-  tableCell: {
-    flex: 1,
-    padding: 8,
-    fontSize: 14,
-    color: "#374151",
-    textAlign: "left",
-  },
   productRecommendations: { paddingVertical: 24, backgroundColor: "#f5f5f5" },
   recommendationsTitle: {
     fontSize: 20,
@@ -616,6 +555,7 @@ const styles = StyleSheet.create({
   recommendationsGrid: { paddingHorizontal: 16, gap: 16 },
   recommendationCard: {
     width: 150,
+    height: 200,
     backgroundColor: "#ffffff",
     borderRadius: 12,
     overflow: "hidden",

@@ -4,24 +4,11 @@ import { useIsLoggedIn } from "../hooks/useLoggedIn";
 import * as SecureStore from "expo-secure-store";
 
 const DataWrapper = ({ children }) => {
-  const [accessToken, isLoggedIn] = useIsLoggedIn();
+  const [accessToken, isLoggedIn,isAuthLoading] = useIsLoggedIn();
   const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const getAccessToken = async () => {
-    try {
-      const tokenData = await SecureStore.getItemAsync("accessToken");
-      if (tokenData) {
-        return JSON.parse(tokenData).token;
-      }
-      return null;
-    } catch (err) {
-      console.error("Failed to retrieve access token:", err);
-      return null;
-    }
-  };
 
   const reload = (key) => {
     if (key === "dbUser") {
@@ -33,19 +20,26 @@ const DataWrapper = ({ children }) => {
     }
   };
 
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    if (isLoggedIn) {
+      fetchUserData();
+    } else {
+      setUser(null);
+    }
+    setIsLoading(false);
+  }, [isAuthLoading])
+  
+
   const fetchUserData = useCallback(async () => {
     if (!isLoggedIn) return;
     try {
-      const token = await getAccessToken();
-      if (!token) {
-        console.error("No access token found");
-        return;
-      }
-      const res = await fetch("http://192.168.1.8:3000/api/user/getUser", {
+      const res = await fetch("http://192.168.1.20:3000/api/user/getUser", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({}),
       });
@@ -60,7 +54,7 @@ const DataWrapper = ({ children }) => {
   const fetchProducts = useCallback(async () => {
     try {
       const headers = { "Content-Type": "application/json" };
-      const res = await fetch("http://192.168.1.8:3000/api/user/getProducts", {
+      const res = await fetch("http://192.168.1.20:3000/api/user/getProducts", {
         method: "GET",
         headers,
       });
@@ -82,13 +76,13 @@ const DataWrapper = ({ children }) => {
           }
         : { "Content-Type": "application/json" };
       const res = await fetch(
-        "http://192.168.1.8:3000/api/user/getCategories",
+        "http://192.168.1.20:3000/api/user/getCategories",
         {
           method: "GET",
           headers,
         }
       );
-      // http://192.168.1.8:3000
+      // http://192.168.1.20:3000
       const data = await res.json();
       console.log("✅ Category fetch successfull");
       setCategories(data.categories || []);

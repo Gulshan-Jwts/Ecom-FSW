@@ -1,4 +1,4 @@
-package com.sholias.affilatorFsWorld
+package com.fashionworld.ecom
 
 import android.os.Build
 import android.os.Bundle
@@ -7,6 +7,10 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+
+import com.facebook.react.ReactRootView
+import com.swmansion.gesturehandler.react.RNGestureHandlerEnabledRootView
+
 
 import expo.modules.ReactActivityDelegateWrapper
 
@@ -29,16 +33,21 @@ class MainActivity : ReactActivity() {
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
    * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
    */
-  override fun createReactActivityDelegate(): ReactActivityDelegate {
-    return ReactActivityDelegateWrapper(
+    override fun createReactActivityDelegate(): ReactActivityDelegate {
+      return ReactActivityDelegateWrapper(
+        this,
+        BuildConfig.IS_NEW_ARCHITECTURE_ENABLED,
+        object : DefaultReactActivityDelegate(
           this,
-          BuildConfig.IS_NEW_ARCHITECTURE_ENABLED,
-          object : DefaultReactActivityDelegate(
-              this,
-              mainComponentName,
-              fabricEnabled
-          ){})
-  }
+          mainComponentName,
+          fabricEnabled
+        ) {
+          override fun createRootView(): ReactRootView {
+            return RNGestureHandlerEnabledRootView(this@MainActivity)
+          }
+        }
+      )
+    }
 
   /**
     * Align the back button behavior with Android S
